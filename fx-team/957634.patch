@@ -1,0 +1,176 @@
+# HG changeset patch
+# Parent e8b0b4daa733da06b2ee353500faaaacb4168fad
+# User Alexey Novak <alexey.novak.mail@gmail.com>
+Bug 957634: Changed Tooltip's setTextContent function signature. Now Tooltip can contain a warning image 32x32 when isAlertTooltip passed = true; r=vp
+
+
+diff --git a/browser/devtools/debugger/debugger-panes.js b/browser/devtools/debugger/debugger-panes.js
+--- a/browser/devtools/debugger/debugger-panes.js
++++ b/browser/devtools/debugger/debugger-panes.js
+@@ -1863,17 +1863,21 @@ VariableBubbleView.prototype = {
+       { line: line - 1, ch: column },
+       { line: line - 1, ch: column + length });
+ 
+     // If the grip represents a primitive value, use a more lightweight
+     // machinery to display it.
+     if (VariablesView.isPrimitive({ value: objectActor })) {
+       let className = VariablesView.getClass(objectActor);
+       let textContent = VariablesView.getString(objectActor);
+-      this._tooltip.setTextContent([textContent], className, "plain");
++      this._tooltip.setTextContent({
++        messages: [textContent],
++        messagesClass: className,
++        containerClass: "plain"
++      });
+     } else {
+       this._tooltip.setVariableContent(objectActor, {
+         searchPlaceholder: L10N.getStr("emptyPropertiesFilterText"),
+         searchEnabled: Prefs.variablesSearchboxVisible,
+         eval: (variable, value) => {
+           let string = variable.evaluationMacro(variable, value);
+           DebuggerController.StackFrames.evaluate(string);
+           DebuggerView.VariableBubble.hideContents();
+diff --git a/browser/devtools/debugger/debugger-toolbar.js b/browser/devtools/debugger/debugger-toolbar.js
+--- a/browser/devtools/debugger/debugger-toolbar.js
++++ b/browser/devtools/debugger/debugger-toolbar.js
+@@ -76,17 +76,18 @@ ToolbarView.prototype = {
+    * Display a warning when trying to resume a debuggee while another is paused.
+    * Debuggees must be unpaused in a Last-In-First-Out order.
+    *
+    * @param string aPausedUrl
+    *        The URL of the last paused debuggee.
+    */
+   showResumeWarning: function(aPausedUrl) {
+     let label = L10N.getFormatStr("resumptionOrderPanelTitle", aPausedUrl);
+-    this._resumeOrderTooltip.setTextContent([label]);
++    let defaultStyle = "default-tooltip-simple-text-colors";
++    this._resumeOrderTooltip.setTextContent({ messages: [label], isAlertTooltip: true });
+     this._resumeOrderTooltip.show(this._resumeButton);
+   },
+ 
+   /**
+    * Sets the resume button state based on the debugger active thread.
+    *
+    * @param string aState
+    *        Either "paused" or "attached".
+diff --git a/browser/devtools/shadereditor/shadereditor.js b/browser/devtools/shadereditor/shadereditor.js
+--- a/browser/devtools/shadereditor/shadereditor.js
++++ b/browser/devtools/shadereditor/shadereditor.js
+@@ -562,17 +562,17 @@ let ShadersEditorsView = {
+    */
+   _onMarkerMouseEnter: function(line, node, messages) {
+     if (node._markerErrorsTooltip) {
+       return;
+     }
+ 
+     let tooltip = node._markerErrorsTooltip = new Tooltip(document);
+     tooltip.defaultOffsetX = GUTTER_ERROR_PANEL_OFFSET_X;
+-    tooltip.setTextContent(messages);
++    tooltip.setTextContent({ messages: messages });
+     tooltip.startTogglingOnHover(node, () => true, GUTTER_ERROR_PANEL_DELAY);
+   },
+ 
+   /**
+    * Removes all the gutter markers and line classes from the editor.
+    */
+   _cleanEditor: function(type) {
+     this._getEditor(type).then(editor => {
+diff --git a/browser/devtools/shared/widgets/Tooltip.js b/browser/devtools/shared/widgets/Tooltip.js
+--- a/browser/devtools/shared/widgets/Tooltip.js
++++ b/browser/devtools/shared/widgets/Tooltip.js
+@@ -406,34 +406,47 @@ Tooltip.prototype = {
+    * Sets some text as the content of this tooltip.
+    *
+    * @param {array} messages
+    *        A list of text messages.
+    * @param {string} messagesClass [optional]
+    *        A style class for the text messages.
+    * @param {string} containerClass [optional]
+    *        A style class for the text messages container.
++   * @param {boolean} isAlertTooltip [optional]
++   *        Pass true to add an alert image for your tooltip.
+    */
+-  setTextContent: function(messages,
+-    messagesClass = "default-tooltip-simple-text-colors",
+-    containerClass = "default-tooltip-simple-text-colors") {
++  setTextContent: function({ messages, messagesClass, containerClass, isAlertTooltip }) {
++    messagesClass = messagesClass || "default-tooltip-simple-text-colors";
++    containerClass = containerClass || "default-tooltip-simple-text-colors";
+ 
+     let vbox = this.doc.createElement("vbox");
+     vbox.className = "devtools-tooltip-simple-text-container " + containerClass;
+     vbox.setAttribute("flex", "1");
+ 
+     for (let text of messages) {
+       let description = this.doc.createElement("description");
+       description.setAttribute("flex", "1");
+       description.className = "devtools-tooltip-simple-text " + messagesClass;
+       description.textContent = text;
+       vbox.appendChild(description);
+     }
+ 
+-    this.content = vbox;
++    if (isAlertTooltip) {
++      let hbox = this.doc.createElement("hbox");
++      hbox.setAttribute("align", "start");
++      let alertImg = this.doc.createElement("image");
++      alertImg.className = "devtools-tooltip-alert-icon";
++      hbox.appendChild(alertImg);
++      hbox.appendChild(vbox);
++
++      this.content = hbox;
++    } else {
++      this.content = vbox;
++    }
+   },
+ 
+   /**
+    * Fill the tooltip with a variables view, inspecting an object via its
+    * corresponding object actor, as specified in the remote debugging protocol.
+    *
+    * @param {object} objectActor
+    *        The value grip for the object actor.
+@@ -506,17 +519,17 @@ Tooltip.prototype = {
+    *        it was resized, if if was resized before this function was called.
+    *        If not provided, will be measured on the loaded image.
+    *        - maxDim : if the image should be resized before being shown, pass
+    *        a number here
+    */
+   setImageContent: function(imageUrl, options={}) {
+     // Main container
+     let vbox = this.doc.createElement("vbox");
+-    vbox.setAttribute("align", "center")
++    vbox.setAttribute("align", "center");
+ 
+     // Display the image
+     let image = this.doc.createElement("image");
+     image.setAttribute("src", imageUrl);
+     if (options.maxDim) {
+       image.style.maxWidth = options.maxDim + "px";
+       image.style.maxHeight = options.maxDim + "px";
+     }
+diff --git a/browser/themes/shared/devtools/common.css b/browser/themes/shared/devtools/common.css
+--- a/browser/themes/shared/devtools/common.css
++++ b/browser/themes/shared/devtools/common.css
+@@ -217,8 +217,21 @@
+   background-size: 20px 20px;
+   background-position: 0 0, 10px 10px;
+ }
+ 
+ .devtools-tooltip-iframe {
+   border: none;
+   background: transparent;
+ }
++
++/* Tooltip: Alert Icon */
++
++.devtools-tooltip-alert-icon {
++  width: 32px;
++  height: 32px;
++  margin: 6px;
++  -moz-margin-end: 20px;
++}
++
++.devtools-tooltip-alert-icon {
++  list-style-image: url("chrome://global/skin/icons/warning-32.png");
++}
