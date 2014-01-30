@@ -1,0 +1,20 @@
+# If ccache was installed via Homebrew:
+export PATH="`brew --prefix ccache`/libexec:$PATH"
+
+# Import the stock config for building the browser (Firefox)
+. $topsrcdir/browser/config/mozconfig
+
+. $topsrcdir/build/macosx/mozconfig.common
+
+CC=clang-mp-3.3
+CXX=clang++-mp-3.3
+
+# Define where build files should go. This places them in the directory
+# "obj-ff-dbg" under the current source directory
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-ff-dbg
+
+# Use ccache
+ac_add_options --with-ccache=/usr/bin/ccache
+ac_add_options --with-ccache
+
+mk_add_options AUTOCONF=/usr/local/Cellar/autoconf213/2.13/bin/autoconf213
