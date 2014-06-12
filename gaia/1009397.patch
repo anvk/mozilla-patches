@@ -1,0 +1,18 @@
+commit 2f70133ebf24c1a9df2eda7b67ed171a3f6ee877
+Author: Alexey Novak <alexey.novak.mail@gmail.com>
+Date:   Tue May 13 09:44:18 2014 -0400
+
+    Bug 1009397: Removing /apps/*/shared from .gitignore
+
+diff --git a/.gitignore b/.gitignore
+index 62b8ce4..a5193c2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -24,7 +24,6 @@ manifest.appcache
+ /apps/*/test/unit/_sandbox.html
+ /apps/*/test/unit/_proxy.html
+ /apps/*/locales-obj
+-/apps/*/shared
+ 
+ /dev_apps/test-agent/test/config.json
+ /dev_apps/*/test/unit/_sandbox.html
