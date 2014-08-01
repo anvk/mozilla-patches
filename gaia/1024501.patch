@@ -1,0 +1,105 @@
+commit f71186e71b6443b3d0d8eee40024ae9a871d4983
+Author: Alexey Novak <alexey.novak.mail@gmail.com>
+Date:   Thu Jul 31 18:06:42 2014 -0400
+
+    1024501: Enable accessibility settings when the screen reader is enabled with quick toggle. r=alive
+
+diff --git a/apps/system/js/accessibility.js b/apps/system/js/accessibility.js
+index 6026b9f..e2e2b73 100644
+--- a/apps/system/js/accessibility.js
++++ b/apps/system/js/accessibility.js
+@@ -105,6 +105,14 @@
+         SettingsListener.observe(settingKey, this.settings[settingKey],
+           function observe(aValue) {
+             this.settings[settingKey] = aValue;
++
++            // Show/Hide Accessibility Panel whenever volume buttons
++            // trigger Screen Reader
++            if (settingKey === 'accessibility.screenreader') {
++              SettingsListener.getSettingsLock().set({
++                'accessibility.show-settings': aValue
++              });
++            }
+           }.bind(this));
+       }, this);
+     },
+diff --git a/tests/python/gaia-ui-tests/gaiatest/tests/accessibility/system/manifest.ini b/tests/python/gaia-ui-tests/gaiatest/tests/accessibility/system/manifest.ini
+index 501ce9e..cff71ec 100644
+--- a/tests/python/gaia-ui-tests/gaiatest/tests/accessibility/system/manifest.ini
++++ b/tests/python/gaia-ui-tests/gaiatest/tests/accessibility/system/manifest.ini
+@@ -6,3 +6,4 @@ b2g = true
+ [test_a11y_utility_tray_settings.py]
+ [test_a11y_utility_tray_visibility.py]
+ [test_a11y_volume_buttons.py]
++[test_a11y_volume_buttons_panel_visibility.py]
+diff --git a/tests/python/gaia-ui-tests/gaiatest/tests/accessibility/system/test_a11y_volume_buttons_panel_visibility.py b/tests/python/gaia-ui-tests/gaiatest/tests/accessibility/system/test_a11y_volume_buttons_panel_visibility.py
+new file mode 100644
+index 0000000..df87194
+--- /dev/null
++++ b/tests/python/gaia-ui-tests/gaiatest/tests/accessibility/system/test_a11y_volume_buttons_panel_visibility.py
+@@ -0,0 +1,53 @@
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this
++# file, You can obtain one at http://mozilla.org/MPL/2.0/.
++
++import time
++
++from gaiatest import GaiaTestCase
++from gaiatest.apps.settings.app import Settings
++
++
++class TestVolumeButtonsAccessibility(GaiaTestCase):
++
++    def setUp(self):
++        GaiaTestCase.setUp(self)
++
++        self.settings = Settings(self.marionette)
++        self.settings.launch()
++
++    def toggle_screen_reader(self):
++        self.marionette.switch_to_frame()
++
++        self.device.press_release_volume_up_then_down_n_times(3)
++        time.sleep(3)
++        self.device.press_release_volume_up_then_down_n_times(3)
++
++        self.apps.switch_to_displayed_app()
++
++    def test_a11y_volume_buttons(self):
++
++        # Panel should not be visible by default
++        self.assertFalse(self.data_layer.get_setting('accessibility.show-settings'))
++        self.assertFalse(self.is_element_displayed(
++            *self.settings._accessibility_menu_item_locator))
++        self.assertTrue(self.accessibility.is_hidden(self.marionette.find_element(
++            *self.settings._accessibility_menu_item_locator)))
++
++        self.toggle_screen_reader()
++
++        # Panel should become visible after screen reader turned ON
++        self.assertTrue(self.data_layer.get_setting('accessibility.show-settings'))
++        self.assertTrue(self.is_element_displayed(
++            *self.settings._accessibility_menu_item_locator))
++        self.assertTrue(self.accessibility.is_visible(self.marionette.find_element(
++            *self.settings._accessibility_menu_item_locator)))
++
++        self.toggle_screen_reader()
++
++        # Panel should not be visible again
++        self.assertFalse(self.data_layer.get_setting('accessibility.show-settings'))
++        self.assertFalse(self.is_element_displayed(
++            *self.settings._accessibility_menu_item_locator))
++        self.assertTrue(self.accessibility.is_hidden(self.marionette.find_element(
++            *self.settings._accessibility_menu_item_locator)))
+diff --git a/tests/python/gaia-ui-tests/gaiatest/tests/tbpl-manifest.ini b/tests/python/gaia-ui-tests/gaiatest/tests/tbpl-manifest.ini
+index 89f3bed..4886ba6 100644
+--- a/tests/python/gaia-ui-tests/gaiatest/tests/tbpl-manifest.ini
++++ b/tests/python/gaia-ui-tests/gaiatest/tests/tbpl-manifest.ini
+@@ -33,6 +33,7 @@ disabled = Bug 1022132 Intermittent Failure on TBPL
+ [accessibility/system/test_a11y_utility_tray_settings.py]
+ [accessibility/system/test_a11y_utility_tray_visibility.py]
+ [accessibility/system/test_a11y_volume_buttons.py]
++[accessibility/system/test_a11y_volume_buttons_panel_visibility.py]
+ 
+ [functional/browser/test_browser_bookmark.py]
+ [functional/browser/test_browser_lan.py]
