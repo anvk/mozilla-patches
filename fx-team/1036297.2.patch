@@ -1,0 +1,64 @@
+# HG changeset patch
+# User Alexey Novak <alexey.novak.mail@gmail.com>
+# Date 1408640393 14400
+#      Thu Aug 21 12:59:53 2014 -0400
+# Node ID bb9a1d79dc832dfec438cd9e68bfef7b15f20bb6
+# Parent fcafd91816f79dc347885b8f6e0de4fb77720ba4
+Bug 1036297 - markupview updateNodeOuterHTML method jsdoc is incorrect and should return a promise, r=pbrosset
+
+diff --git a/browser/devtools/markupview/markup-view.js b/browser/devtools/markupview/markup-view.js
+--- a/browser/devtools/markupview/markup-view.js
++++ b/browser/devtools/markupview/markup-view.js
+@@ -852,39 +852,43 @@ MarkupView.prototype = {
+         def.resolve(children.nodes.indexOf(aNode));
+       });
+     }
+ 
+     return def.promise;
+   },
+ 
+   /**
+-   * Retrieve the index of a child within its parent's children collection.
+-   * @param aNode The NodeFront to find the index of.
++   * Replace the outerHTML of any node displayed in the inspector with
++   * some other HTML code
++   * @param aNode node which outerHTML will be replaced.
+    * @param newValue The new outerHTML to set on the node.
+-   * @param oldValue The old outerHTML that will be reverted to find the index of.
+-   * @returns A promise that will be resolved with the integer index.
+-   *          If the child cannot be found, returns -1
++   * @param oldValue The old outerHTML that will be used if the user undos the update.
++   * @returns A promise that will resolve when the outer HTML has been updated.
+    */
+   updateNodeOuterHTML: function(aNode, newValue, oldValue) {
+-    let container = this.getContainer(aNode);
++    let container = this._containers.get(aNode);
+     if (!container) {
+-      return;
++      return promise.reject();
+     }
+ 
++    let def = promise.defer();
++
+     this.getNodeChildIndex(aNode).then((i) => {
+       this._outerHTMLChildIndex = i;
+       this._outerHTMLNode = aNode;
+ 
+       container.undo.do(() => {
+-        this.walker.setOuterHTML(aNode, newValue);
++        this.walker.setOuterHTML(aNode, newValue).then(def.resolve, def.reject);
+       }, () => {
+-        this.walker.setOuterHTML(aNode, oldValue);
++        this.walker.setOuterHTML(aNode, oldValue).then(def.resolve, def.reject);
+       });
+     });
++
++    return def.promise;
+   },
+ 
+   /**
+    * Open an editor in the UI to allow editing of a node's outerHTML.
+    * @param aNode The NodeFront to edit.
+    */
+   beginEditingOuterHTML: function(aNode) {
+     this.getNodeOuterHTML(aNode).then((oldValue)=> {
