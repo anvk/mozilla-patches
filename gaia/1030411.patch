@@ -1,0 +1,28 @@
+commit 7c5172365d197b5caf56a81b60b8597ff9d524d9
+Author: Alexey Novak <alexey.novak.mail@gmail.com>
+Date:   Fri Aug 22 12:05:13 2014 -0400
+
+    Bug 1030411 - SMS button in contact dialog not labeled.
+
+diff --git a/apps/communications/contacts/elements/details.html b/apps/communications/contacts/elements/details.html
+index 2e27a6b..8525a56 100644
+--- a/apps/communications/contacts/elements/details.html
++++ b/apps/communications/contacts/elements/details.html
+@@ -15,7 +15,7 @@
+             <h2 data-l10n-id="#type_l10n_id#">#type# <span class="carrier">#carrier#</span></h2>
+             <div class="item">
+               <div class="item-media pull-right">
+-                <button id="send-sms-button-#i#" class="activity send-sms icon icon-message"></button>
++                <button id="send-sms-button-#i#" class="activity send-sms icon icon-message" data-l10n-id="send-sms-button" aria-label="SMS"></button>
+               </div>
+               <div class="item-body-exp">
+                 <button class="activity call-action icon icon-call" id="call-or-pick-#i#">
+diff --git a/apps/communications/contacts/locales/contacts.en-US.properties b/apps/communications/contacts/locales/contacts.en-US.properties
+index 826def7..703b4f9 100755
+--- a/apps/communications/contacts/locales/contacts.en-US.properties
++++ b/apps/communications/contacts/locales/contacts.en-US.properties
+@@ -234,3 +234,4 @@ pick_destination = {{ destination }} {{ carrier }}
+ # screen.
+ removeField.ariaLabel = Remove
+ undo.ariaLabel = Undo
++send-sms-button.ariaLabel = SMS
